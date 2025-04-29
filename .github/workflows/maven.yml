@@ -1,0 +1,48 @@
+name: Run Cucumber Tests Manually
+
+on:
+  workflow_dispatch:
+    inputs:
+      cucumber_tag:
+        description: 'Select Cucumber Tag to Run'
+        required: true
+        type: choice
+        options:
+          - '@SU_TC01_Register_with_valid_credentials'
+          - '@SU_TC02_Register_with_leaving_one_mandatory_field_blank'
+          - '@SU_TC03_Register_with_existing_accounts_credentials'
+          - '@SU_TC04_Navigate_to_Registration_Page_from_Login_Page'
+          - '@SU_TC05_login_valid_credentials'
+          - '@SU_TC06_Login_with_Valid_Username_Invalid_Password'
+          - '@SU_TC07_Login_with_InValid_Username_valid_Password'
+          - '@SU_TC08_Login_with_InValid_Username_Invalid_Password'
+          - '@SU_TC09_Navigate_to_Reset_password_page'
+          - '@SU_TC10_store_purchase'
+          - '@SU_TC11_Take_Quiz_failed_in_quiz'
+          - '@SU_TC12_Quiz_Reattempt_Passed'
+          - '@SU_TC13_Register_with_Group_Code'
+          - '@SU_TC_14_Register_to_the_website_Quiz_Register_Payment'
+          - '@SU_TC15_User_can_make_payment_for_the_selected_course'
+          - '@SU_TC16_Verify_if_the_user_can_purchase_course_with_add-ons'
+          - '@SU_TC_17_Schedule_Virtual_HandsOn_Training'
+          - '@SU_TC_18_Purchase_walletcard_and_virtual_review_session_add-ons'
+          - '@SU_TC19_Certificate_download'
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      - name: Run Maven Test with Selected Tag
+        run: |
+          echo "Running tests with tag: ${{ github.event.inputs.cucumber_tag }}"
+          mvn clean test -Dcucumber.filter.tags="${{ github.event.inputs.cucumber_tag }}"
