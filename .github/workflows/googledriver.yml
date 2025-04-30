@@ -1,0 +1,103 @@
+name: Run Cucumber Tests and Upload Reports to Drive
+
+on:
+  workflow_dispatch:
+    inputs:
+      cucumber_tag:
+        description: 'Select Cucumber Tag to Run'
+        required: true
+        type: choice
+        options:
+          - '@SU_TC01_Register_with_valid_credentials'
+          - '@SU_TC02_Register_with_leaving_one_mandatory_field_blank'
+          - '@SU_TC03_Register_with_existing_accounts_credentials'
+          - '@SU_TC04_Navigate_to_Registration_Page_from_Login_Page'
+          - '@SU_TC05_login_valid_credentials'
+          - '@SU_TC06_Login_with_Valid_Username_Invalid_Password'
+          - '@SU_TC07_Login_with_InValid_Username_valid_Password'
+          - '@SU_TC08_Login_with_InValid_Username_Invalid_Password'
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Run Maven Test with Selected Tag
+        run: |
+          echo "Running tests with tag: ${{ github.event.inputs.cucumber_tag }}"
+          mvn clean test -Dcucumber.filter.tags="${{ github.event.inputs.cucumber_tag }}"
+
+      - name: Install Python and Dependencies
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Google Drive API Client
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
+
+      - name: Upload Extent Reports to Google Drive
+        env:
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: |
+          echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > service_account.json
+          python -c "
+          import os
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
+
+          # Set up credentials
+          SCOPES = ['https://www.googleapis.com/auth/drive']
+          SERVICE_ACCOUNT_FILE = 'service_account.json'
+          credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+          service = build('drive', 'v3', credentials=credentials)
+
+          # Folder details
+          source_folder = 'AmericanHealth/ExtentReports'
+          parent_folder_id = os.environ.get('GDRIVE_FOLDER_ID')
+
+          # Create folder in Drive (optional - if you want to create a new folder each time)
+          # folder_metadata = {
+          #     'name': 'ExtentReports_' + os.environ.get('GITHUB_RUN_ID'),
+          #     'mimeType': 'application/vnd.google-apps.folder',
+          #     'parents': [parent_folder_id]
+          # }
+          # folder = service.files().create(body=folder_metadata, fields='id').execute()
+          # parent_folder_id = folder.get('id')
+
+          # Upload all files from the local folder
+          for root, dirs, files in os.walk(source_folder):
+              for file_name in files:
+                  file_path = os.path.join(root, file_name)
+                  relative_path = os.path.relpath(file_path, source_folder)
+                  
+                  # Create file metadata
+                  file_metadata = {
+                      'name': file_name,
+                      'parents': [parent_folder_id]
+                  }
+                  
+                  # Upload the file
+                  media = MediaFileUpload(file_path)
+                  try:
+                      service.files().create(
+                          body=file_metadata,
+                          media_body=media,
+                          fields='id'
+                      ).execute()
+                      print(f'Successfully uploaded: {file_name}')
+                  except Exception as e:
+                      print(f'Error uploading {file_name}: {str(e)}')
+          "
