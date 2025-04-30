@@ -46,20 +46,22 @@ jobs:
             exit 1
           fi
 
-      - name: Setup Google Drive Uploader
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-          wget -q https://github.com/prasmussen/gdrive/releases/download/2.1.1/gdrive_2.1.1_linux_386.tar.gz
-          tar -xzf gdrive_2.1.1_linux_386.tar.gz
-          chmod +x gdrive
+      - name: Set up Python for Drive API
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
 
-      - name: Upload Reports to Google Drive
+      - name: Install Google Drive API
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
+
+      - name: Upload Reports via Drive API
         env:
           GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
-          # Create credentials file in current directory
+          # Create credentials file
           echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > credentials.json
           chmod 600 credentials.json
 
@@ -74,20 +76,46 @@ jobs:
           echo "=== Uploading reports from: $REPORT_DIR ==="
           ls -R "$REPORT_DIR"
 
-          # Upload using absolute path to credentials
-          ./gdrive upload \
-            --service-account "$(pwd)/credentials.json" \
-            --recursive \
-            --parent "$GDRIVE_FOLDER_ID" \
-            "$REPORT_DIR"
+          # Python script to handle upload
+          python3 -c "
+          import os
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
 
-          # Verify upload
-          echo "=== Verifying upload ==="
-          ./gdrive list \
-            --service-account "$(pwd)/credentials.json" \
-            --query "'$GDRIVE_FOLDER_ID' in parents" \
-            --name-width 50
+          # Set up credentials
+          SCOPES = ['https://www.googleapis.com/auth/drive']
+          SERVICE_ACCOUNT_FILE = 'credentials.json'
+          credentials = service_account.Credentials.from_service_account_file(
+              SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+          service = build('drive', 'v3', credentials=credentials)
+
+          # Upload function
+          def upload_file(file_path, parent_id):
+              file_name = os.path.basename(file_path)
+              file_metadata = {
+                  'name': file_name,
+                  'parents': [parent_id]
+              }
+              media = MediaFileUpload(file_path)
+              file = service.files().create(
+                  body=file_metadata,
+                  media_body=media,
+                  fields='id'
+              ).execute()
+              return file.get('id')
+
+          # Upload all files recursively
+          for root, dirs, files in os.walk('$REPORT_DIR'):
+              for file in files:
+                  file_path = os.path.join(root, file)
+                  try:
+                      file_id = upload_file(file_path, '$GDRIVE_FOLDER_ID')
+                      print(f'Uploaded: {file_path} (ID: {file_id})')
+                  except Exception as e:
+                      print(f'Error uploading {file_path}: {str(e)}')
+          "
 
       - name: Cleanup
         run: |
-          rm -f gdrive* credentials.json
+          rm -f credentials.json
