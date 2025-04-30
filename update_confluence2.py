@@ -8,7 +8,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 # 🔹 Confluence API Details
 CONFLUENCE_USER = "documentation@thinktime.in"
-API_TOKEN = "ATATT3xFfGF02_D-IVKFEKR81_mbNsVHRUEYb4wg-4MQHDltDL6vInPR5kpVxn4lzkgTdEb-TSoKtpRMY-c7EpVp1-jpcgkmyiHhw42hrvkz_PbvQaCxOdbeAVBncDLrxJiblNZZa6UAHB-t3pPFJDvIFmnw_cYjiZ6uouCA_8jZaOIDHaBVFHI=F0EB2BE1"
+API_TOKEN = "ATATT3xFfGF0ZPqDH2NNlaxVr1cT7tRwFqoZv8vjOqt9B8saRojjujz9Fj5guUkJavKTKck8ZBIi_a3GEuS2vIFFOogJzx229f5rDzCg-kK_G3YmQop0SmeFAvORCJ2mABI5xxf5d7s8yM-pagzqkD-lSYwHUH3Fud8cPC81Mh8MRz0qb3ezeAY=C8B6D312"
 CONFLUENCE_URL = "https://thinktime-qahub.atlassian.net/wiki/rest/api/content"
 
 def debug_print_html(html):
