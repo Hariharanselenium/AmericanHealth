@@ -1,4 +1,4 @@
-name: Run Cucumber Tests and Upload Reports to Drive (gdrive CLI)
+name: Run Cucumber Tests and Upload Reports to Drive
 
 on:
   workflow_dispatch:
@@ -36,53 +36,55 @@ jobs:
 
       - name: Verify ExtentReports Folder Exists
         run: |
-          echo "Contents of AmericanHealth/ExtentReports:"
-          ls -R AmericanHealth/ExtentReports || echo "Folder not found!"
+          echo "Checking ExtentReports directory:"
+          if [ -d "AmericanHealth/ExtentReports" ]; then
+            echo "Directory exists with contents:"
+            ls -R AmericanHealth/ExtentReports
+          else
+            echo "Error: ExtentReports directory not found!"
+            exit 1
+          fi
 
-      - name: Install gdrive CLI and dependencies
+      - name: Setup Google Drive Uploader
         run: |
-          # Install jq for JSON parsing
+          # Install required tools
           sudo apt-get update
-          sudo apt-get install -y jq
+          sudo apt-get install -y jq tar
           
-          # Install gdrive
-          wget https://github.com/prasmussen/gdrive/releases/download/2.1.1/gdrive_2.1.1_linux_386.tar.gz
+          # Download and extract gdrive
+          wget -q https://github.com/prasmussen/gdrive/releases/download/2.1.1/gdrive_2.1.1_linux_386.tar.gz
           tar -xzf gdrive_2.1.1_linux_386.tar.gz
           chmod +x gdrive
           ./gdrive version
 
-      - name: Upload to Google Drive
+      - name: Upload Reports to Google Drive
         env:
           GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
-          # Install required dependencies
-          sudo apt-get install -y jq
+          # Create service account file
+          echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > sa_credentials.json
+          chmod 600 sa_credentials.json
 
-          # Save service account JSON to working directory (simpler approach)
-          echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > service_account.json
-          chmod 600 service_account.json
+          # Verify service account
+          SERVICE_ACCOUNT_EMAIL=$(jq -r '.client_email' sa_credentials.json)
+          echo "Service Account Email: $SERVICE_ACCOUNT_EMAIL"
 
-          # Verify service account file
-          echo "Service account info:"
-          jq '.client_email' service_account.json
-
-          # Get absolute path to service account file
-          SERVICE_ACCOUNT_PATH="$(pwd)/service_account.json"
-          echo "Service account path: $SERVICE_ACCOUNT_PATH"
-
-          # Configure gdrive to use service account
-          echo "=== Testing Drive connection ==="
-          ./gdrive about --service-account "$SERVICE_ACCOUNT_PATH"
-
-          # Upload files
-          echo "=== Uploading files ==="
-          ./gdrive upload --service-account "$SERVICE_ACCOUNT_PATH" \
+          # Upload files with explicit path handling
+          echo "=== Starting Upload ==="
+          ./gdrive upload \
+            --service-account "$(pwd)/sa_credentials.json" \
             --recursive \
             --parent "$GDRIVE_FOLDER_ID" \
             "AmericanHealth/ExtentReports"
 
           # Verify upload
-          echo "=== Uploaded files ==="
-          ./gdrive list --service-account "$SERVICE_ACCOUNT_PATH" \
-            --query "'$GDRIVE_FOLDER_ID' in parents and name contains 'ExtentReports'"
+          echo "=== Upload Verification ==="
+          ./gdrive list \
+            --service-account "$(pwd)/sa_credentials.json" \
+            --query "'$GDRIVE_FOLDER_ID' in parents" \
+            --name-width 50
+
+      - name: Cleanup
+        run: |
+          rm -f gdrive* sa_credentials.json
