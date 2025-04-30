@@ -34,57 +34,72 @@ jobs:
           echo "Running tests with tag: ${{ github.event.inputs.cucumber_tag }}"
           mvn clean test -Dcucumber.filter.tags="${{ github.event.inputs.cucumber_tag }}"
 
-      - name: Verify ExtentReports Folder Exists
+      - name: Debug Test Output Locations
         run: |
-          echo "Checking ExtentReports directory:"
-          if [ -d "AmericanHealth/ExtentReports" ]; then
-            echo "Directory exists with contents:"
-            ls -R AmericanHealth/ExtentReports
-          else
-            echo "Error: ExtentReports directory not found!"
-            exit 1
-          fi
+          echo "=== Searching for Report Directories ==="
+          find . -type d | grep -i "report\|extent\|output\|result" || echo "No report directories found"
+          echo "=== Maven Target Contents ==="
+          ls -R target || echo "No target directory found"
 
       - name: Setup Google Drive Uploader
         run: |
-          # Install required tools
           sudo apt-get update
-          sudo apt-get install -y jq tar
-          
-          # Download and extract gdrive
-          wget -q https://github.com/prasmussen/gdrive/releases/download/2.1.1/gdrive_2.1.1_linux_386.tar.gz
+          sudo apt-get install -y jq
+          wget https://github.com/prasmussen/gdrive/releases/download/2.1.1/gdrive_2.1.1_linux_386.tar.gz
           tar -xzf gdrive_2.1.1_linux_386.tar.gz
           chmod +x gdrive
           ./gdrive version
 
-      - name: Upload Reports to Google Drive
+      - name: Find and Upload Extent Reports
         env:
           GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
-          # Create service account file
-          echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > sa_credentials.json
-          chmod 600 sa_credentials.json
-
-          # Verify service account
-          SERVICE_ACCOUNT_EMAIL=$(jq -r '.client_email' sa_credentials.json)
-          echo "Service Account Email: $SERVICE_ACCOUNT_EMAIL"
-
-          # Upload files with explicit path handling
-          echo "=== Starting Upload ==="
-          ./gdrive upload \
-            --service-account "$(pwd)/sa_credentials.json" \
-            --recursive \
-            --parent "$GDRIVE_FOLDER_ID" \
+          # Try common report locations (add more if needed)
+          REPORT_PATHS=(
+            "target/extent-reports"
+            "target/ExtentReports"
+            "ExtentReports"
+            "test-output/ExtentReports"
             "AmericanHealth/ExtentReports"
+            "target/surefire-reports"
+            "build/reports/tests"
+          )
 
-          # Verify upload
-          echo "=== Upload Verification ==="
-          ./gdrive list \
-            --service-account "$(pwd)/sa_credentials.json" \
-            --query "'$GDRIVE_FOLDER_ID' in parents" \
-            --name-width 50
+          FOUND_REPORTS=false
+          for path in "${REPORT_PATHS[@]}"; do
+            if [ -d "$path" ]; then
+              echo "::group::Found reports at: $path"
+              echo "=== Report Contents ==="
+              ls -R "$path"
+              echo "::endgroup::"
+              
+              echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > sa.json
+              chmod 600 sa.json
+              
+              echo "=== Uploading Reports ==="
+              if ./gdrive upload \
+                --service-account "$(pwd)/sa.json" \
+                --recursive \
+                --parent "$GDRIVE_FOLDER_ID" \
+                "$path"; then
+                echo "::notice::Successfully uploaded reports from $path"
+                FOUND_REPORTS=true
+                break
+              else
+                echo "::warning::Failed to upload reports from $path"
+              fi
+            fi
+          done
+
+          if [ "$FOUND_REPORTS" = false ]; then
+            echo "::error::No ExtentReports directory found in any expected location!"
+            echo "Searched in: ${REPORT_PATHS[*]}"
+            echo "=== Full Directory Structure ==="
+            find . -type d
+            exit 1
+          fi
 
       - name: Cleanup
         run: |
-          rm -f gdrive* sa_credentials.json
+          rm -f gdrive* sa.json
