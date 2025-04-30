@@ -34,72 +34,60 @@ jobs:
           echo "Running tests with tag: ${{ github.event.inputs.cucumber_tag }}"
           mvn clean test -Dcucumber.filter.tags="${{ github.event.inputs.cucumber_tag }}"
 
-      - name: Debug Test Output Locations
+      - name: Verify Reports Generation
         run: |
-          echo "=== Searching for Report Directories ==="
-          find . -type d | grep -i "report\|extent\|output\|result" || echo "No report directories found"
-          echo "=== Maven Target Contents ==="
-          ls -R target || echo "No target directory found"
+          echo "=== Checking for Generated Reports ==="
+          find . -name "SparkReport_*" -type d || echo "No Spark reports found"
+          if [ -d "ExtentReports" ]; then
+            echo "ExtentReports directory exists with:"
+            ls -R ExtentReports
+          else
+            echo "::error::ExtentReports directory not found!"
+            exit 1
+          fi
 
       - name: Setup Google Drive Uploader
         run: |
           sudo apt-get update
           sudo apt-get install -y jq
-          wget https://github.com/prasmussen/gdrive/releases/download/2.1.1/gdrive_2.1.1_linux_386.tar.gz
+          wget -q https://github.com/prasmussen/gdrive/releases/download/2.1.1/gdrive_2.1.1_linux_386.tar.gz
           tar -xzf gdrive_2.1.1_linux_386.tar.gz
           chmod +x gdrive
-          ./gdrive version
 
-      - name: Find and Upload Extent Reports
+      - name: Upload Reports to Google Drive
         env:
           GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
-          # Try common report locations (add more if needed)
-          REPORT_PATHS=(
-            "target/extent-reports"
-            "target/ExtentReports"
-            "ExtentReports"
-            "test-output/ExtentReports"
-            "AmericanHealth/ExtentReports"
-            "target/surefire-reports"
-            "build/reports/tests"
-          )
+          # Create credentials file in current directory
+          echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > credentials.json
+          chmod 600 credentials.json
 
-          FOUND_REPORTS=false
-          for path in "${REPORT_PATHS[@]}"; do
-            if [ -d "$path" ]; then
-              echo "::group::Found reports at: $path"
-              echo "=== Report Contents ==="
-              ls -R "$path"
-              echo "::endgroup::"
-              
-              echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > sa.json
-              chmod 600 sa.json
-              
-              echo "=== Uploading Reports ==="
-              if ./gdrive upload \
-                --service-account "$(pwd)/sa.json" \
-                --recursive \
-                --parent "$GDRIVE_FOLDER_ID" \
-                "$path"; then
-                echo "::notice::Successfully uploaded reports from $path"
-                FOUND_REPORTS=true
-                break
-              else
-                echo "::warning::Failed to upload reports from $path"
-              fi
-            fi
-          done
-
-          if [ "$FOUND_REPORTS" = false ]; then
-            echo "::error::No ExtentReports directory found in any expected location!"
-            echo "Searched in: ${REPORT_PATHS[*]}"
-            echo "=== Full Directory Structure ==="
-            find . -type d
+          # Get the latest Spark report directory
+          REPORT_DIR=$(find ExtentReports -name "SparkReport_*" -type d | head -1)
+          
+          if [ -z "$REPORT_DIR" ]; then
+            echo "::error::No SparkReport directory found!"
             exit 1
           fi
 
+          echo "=== Uploading reports from: $REPORT_DIR ==="
+          ls -R "$REPORT_DIR"
+
+          # Upload using absolute path to credentials
+          ./gdrive upload \
+            --service-account "$(pwd)/credentials.json" \
+            --recursive \
+            --parent "$GDRIVE_FOLDER_ID" \
+            "$REPORT_DIR"
+
+          # Verify upload
+          echo "=== Verifying upload ==="
+          ./gdrive list \
+            --service-account "$(pwd)/credentials.json" \
+            --query "'$GDRIVE_FOLDER_ID' in parents" \
+            --name-width 50
+
       - name: Cleanup
         run: |
-          rm -f gdrive* sa.json
+          rm -f gdrive* credentials.json
