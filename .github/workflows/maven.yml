@@ -31,7 +31,7 @@ on:
         description: 'Confluence Page Number'
         required: true
         type: string
-        default: '6357128'
+        default: '28115116'
 
 jobs:
   run-tests:
@@ -77,7 +77,7 @@ jobs:
 
       - name: Update Confluence
         run: |
-          python emojistatus.py \
+          python update_confluence2.py \
             "${{ steps.test-result.outputs.tag }}" \
             "${{ steps.test-result.outputs.status }}" \
             "${{ steps.test-result.outputs.timestamp }}" \
