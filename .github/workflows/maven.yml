@@ -27,6 +27,11 @@ on:
           - '@SU_TC_17_Schedule_Virtual_HandsOn_Training'
           - '@SU_TC_18_Purchase_walletcard_and_virtual_review_session_add-ons'
           - '@SU_TC19_Certificate_download'
+      confluence_page:
+        description: 'Confluence Page Number'
+        required: true
+        type: string
+        default: '6357128'
 
 jobs:
   run-tests:
@@ -41,8 +46,39 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests atlassian-python-api
 
       - name: Run Maven Test with Selected Tag
+        id: test-run
         run: |
           echo "Running tests with tag: ${{ github.event.inputs.cucumber_tag }}"
           mvn clean test -Dcucumber.filter.tags="${{ github.event.inputs.cucumber_tag }}"
+          
+      - name: Determine test result
+        id: test-result
+        if: always()
+        run: |
+          if [ ${{ steps.test-run.outcome }} == 'success' ]; then
+            echo "status=PASSED" >> $GITHUB_OUTPUT
+          else
+            echo "status=FAILED" >> $GITHUB_OUTPUT
+          fi
+          echo "tag=${{ github.event.inputs.cucumber_tag }}" | sed 's/@//' >> $GITHUB_OUTPUT
+          echo "timestamp=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+
+      - name: Update Confluence
+        run: |
+          python emojistatus.py \
+            "${{ steps.test-result.outputs.tag }}" \
+            "${{ steps.test-result.outputs.status }}" \
+            "${{ steps.test-result.outputs.timestamp }}" \
+            "${{ github.event.inputs.confluence_page }}"
