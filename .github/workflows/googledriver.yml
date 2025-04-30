@@ -14,19 +14,6 @@ on:
           - '@SU_TC04_Navigate_to_Registration_Page_from_Login_Page'
           - '@SU_TC05_login_valid_credentials'
           - '@SU_TC06_Login_with_Valid_Username_Invalid_Password'
-          - '@SU_TC07_Login_with_InValid_Username_valid_Password'
-          - '@SU_TC08_Login_with_InValid_Username_Invalid_Password'
-          - '@SU_TC09_Navigate_to_Reset_password_page'
-          - '@SU_TC10_store_purchase'
-          - '@SU_TC11_Take_Quiz_failed_in_quiz'
-          - '@SU_TC12_Quiz_Reattempt_Passed'
-          - '@SU_TC13_Register_with_Group_Code'
-          - '@SU_TC_14_Register_to_the_website_Quiz_Register_Payment'
-          - '@SU_TC15_User_can_make_payment_for_the_selected_course'
-          - '@SU_TC16_Verify_if_the_user_can_purchase_course_with_add-ons'
-          - '@SU_TC_17_Schedule_Virtual_HandsOn_Training'
-          - '@SU_TC_18_Purchase_walletcard_and_virtual_review_session_add-ons'
-          - '@SU_TC19_Certificate_download'
 
 jobs:
   run-tests:
@@ -59,30 +46,30 @@ jobs:
           chmod +x gdrive
           ./gdrive version
 
-     - name: Upload to Google Drive
-  env:
-    GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
-    GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
-  run: |
-    # Create the .gdrive directory and save credentials
-    mkdir -p ~/.gdrive
-    echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > ~/.gdrive/service_account.json
-    
-    # Verify file was created
-    echo "Service account file contents:"
-    head -n 3 ~/.gdrive/service_account.json
-    
-    # Set the correct permissions
-    chmod 600 ~/.gdrive/service_account.json
-    
-    # Debug: Verify folder exists
-    echo "=== Listing files in target folder ==="
-    ./gdrive list --query "'$GDRIVE_FOLDER_ID' in parents" || true
-    
-    # Upload with full path to service account
-    echo "=== Uploading files ==="
-    ./gdrive --service-account ~/.gdrive/service_account.json upload --recursive --parent "$GDRIVE_FOLDER_ID" "AmericanHealth/ExtentReports"
-    
-    # Verify upload
-    echo "=== Uploaded files ==="
-    ./gdrive --service-account ~/.gdrive/service_account.json list --query "'$GDRIVE_FOLDER_ID' in parents"
+      - name: Upload to Google Drive
+        env:
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: |
+          # Create the .gdrive directory and save credentials
+          mkdir -p ~/.gdrive
+          echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > ~/.gdrive/service_account.json
+          
+          # Verify file was created
+          echo "Service account file contents:"
+          head -n 3 ~/.gdrive/service_account.json
+          
+          # Set the correct permissions
+          chmod 600 ~/.gdrive/service_account.json
+          
+          # Debug: Verify folder exists
+          echo "=== Listing files in target folder ==="
+          ./gdrive list --query "'$GDRIVE_FOLDER_ID' in parents" || true
+          
+          # Upload with full path to service account
+          echo "=== Uploading files ==="
+          ./gdrive --service-account ~/.gdrive/service_account.json upload --recursive --parent "$GDRIVE_FOLDER_ID" "AmericanHealth/ExtentReports"
+          
+          # Verify upload
+          echo "=== Uploaded files ==="
+          ./gdrive --service-account ~/.gdrive/service_account.json list --query "'$GDRIVE_FOLDER_ID' in parents"
