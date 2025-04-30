@@ -59,22 +59,30 @@ jobs:
           chmod +x gdrive
           ./gdrive version
 
-      - name: Upload to Google Drive
-        env:
-          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
-          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
-        run: |
-          # Save service account JSON
-          echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > service_account.json
-
-          # Debug: Verify connection to Drive
-          echo "=== Listing files in target folder ==="
-          ./gdrive --service-account service_account.json list --query "'$GDRIVE_FOLDER_ID' in parents" || true
-
-          # Upload entire folder recursively
-          echo "=== Uploading files ==="
-          ./gdrive --service-account service_account.json upload --recursive --parent "$GDRIVE_FOLDER_ID" "AmericanHealth/ExtentReports"
-
-          # Verify upload succeeded
-          echo "=== Verifying upload ==="
-          ./gdrive --service-account service_account.json list --query "'$GDRIVE_FOLDER_ID' in parents and name contains 'ExtentReports'"
+     - name: Upload to Google Drive
+  env:
+    GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+    GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+  run: |
+    # Create the .gdrive directory and save credentials
+    mkdir -p ~/.gdrive
+    echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > ~/.gdrive/service_account.json
+    
+    # Verify file was created
+    echo "Service account file contents:"
+    head -n 3 ~/.gdrive/service_account.json
+    
+    # Set the correct permissions
+    chmod 600 ~/.gdrive/service_account.json
+    
+    # Debug: Verify folder exists
+    echo "=== Listing files in target folder ==="
+    ./gdrive list --query "'$GDRIVE_FOLDER_ID' in parents" || true
+    
+    # Upload with full path to service account
+    echo "=== Uploading files ==="
+    ./gdrive --service-account ~/.gdrive/service_account.json upload --recursive --parent "$GDRIVE_FOLDER_ID" "AmericanHealth/ExtentReports"
+    
+    # Verify upload
+    echo "=== Uploaded files ==="
+    ./gdrive --service-account ~/.gdrive/service_account.json list --query "'$GDRIVE_FOLDER_ID' in parents"
