@@ -8,7 +8,18 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 # 🔹 Confluence API Details
 CONFLUENCE_USER = "documentation@thinktime.in"
-API_TOKEN = "ATATT3xFfGF0ZPqDH2NNlaxVr1cT7tRwFqoZv8vjOqt9B8saRojjujz9Fj5guUkJavKTKck8ZBIi_a3GEuS2vIFFOogJzx229f5rDzCg-kK_G3YmQop0SmeFAvORCJ2mABI5xxf5d7s8yM-pagzqkD-lSYwHUH3Fud8cPC81Mh8MRz0qb3ezeAY=C8B6D312"
+
+# 🔹 Jenkins Job Details (Passed as Arguments)
+if len(sys.argv) < 6:
+    print("❌ Missing Arguments! Usage: python update_confluence.py <Scenario_Name> <Status> <Execution_Time> <Page_ID> <API_TOKEN>")
+    sys.exit(1)
+
+scenario_name = sys.argv[1]  # e.g., SU_TC01_Register_with_valid_credentials
+build_status = sys.argv[2]   # e.g., PASSED or FAILED
+execution_time = sys.argv[3] # e.g., 2025-03-26 06:13:24
+PAGE_ID = sys.argv[4]        # e.g., 6291841
+API_TOKEN = sys.argv[5]      # API token passed as parameter
+
 CONFLUENCE_URL = "https://thinktime-qahub.atlassian.net/wiki/rest/api/content"
 
 def debug_print_html(html):
@@ -17,27 +28,17 @@ def debug_print_html(html):
     print(html[:1000])
     print("... [truncated] ...\n")
 
-# 🔹 Jenkins Job Details (Passed as Arguments)
-if len(sys.argv) < 5:
-    print("❌ Missing Arguments! Usage: python update_confluence.py <Scenario_Name> <Status> <Execution_Time> <Page_ID>")
-    sys.exit(1)
-
-scenario_name = sys.argv[1]  # e.g., SU_TC01_Register_with_valid_credentials
-build_status = sys.argv[2]   # e.g., PASSED or FAILED
-execution_time = sys.argv[3] # e.g., 2025-03-26 06:13:24
-PAGE_ID = sys.argv[4]        # e.g., 6291841
-
 print(f"\n🔹 Starting update for scenario: {scenario_name}")
 print(f"🔹 Status: {build_status}")
 print(f"🔹 Execution Time: {execution_time}")
 print(f"🔹 Page ID: {PAGE_ID}\n")
 
-# 🔹 Add Emoji based on status (New addition)
+# 🔹 Add Emoji based on status (Updated to capitalize only first letter)
 status_with_emoji = build_status  # Default to original status
 if build_status.upper() == "PASSED":
-    status_with_emoji = "✅ PASSED"
+    status_with_emoji = "✅ Passed"
 elif build_status.upper() == "FAILED":
-    status_with_emoji = "❌ FAILED"
+    status_with_emoji = "❌ Failed"
 
 # 🔹 Fetch Confluence Page Content
 auth = (CONFLUENCE_USER, API_TOKEN)
