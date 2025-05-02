@@ -1,0 +1,106 @@
+name: Confluence and Google Driver
+
+on:
+  workflow_dispatch:
+    inputs:
+      cucumber_tag:
+        description: 'Select Cucumber Tag to Run'
+        required: true
+        type: choice
+        options:
+          - '@SU_TC01_Register_with_valid_credentials'
+          - '@SU_TC02_Register_with_leaving_one_mandatory_field_blank'
+          - '@SU_TC03_Register_with_existing_accounts_credentials'
+          - '@SU_TC04_Navigate_to_Registration_Page_from_Login_Page'
+          - '@SU_TC05_login_valid_credentials'
+          - '@SU_TC06_Login_with_Valid_Username_Invalid_Password'
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python Dependencies
+        run: pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
+
+      - name: Run Maven Test with Selected Tag
+        run: |
+          echo "Running tests with tag: ${{ github.event.inputs.cucumber_tag }}"
+          mvn clean test -Dcucumber.filter.tags="${{ github.event.inputs.cucumber_tag }}"
+
+      - name: Update Status to Confluence
+        env:
+          CONF_TOKEN: ${{ secrets.CONFLUENCE_TOKEN }}
+        run: |
+          python <<EOF
+          import os
+          import datetime
+          import requests
+
+          tag_name = "${{ github.event.inputs.cucumber_tag }}"
+          status = "passed"
+          trigger_time = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+          page_id = "11075585"
+          token = os.environ['CONF_TOKEN']
+
+          # Simulated update to Confluence
+          print(f"python emojiname.py {tag_name} {status} {trigger_time} {page_id} {token}")
+          # Here you can call actual Confluence API using requests if needed
+          EOF
+
+      - name: Upload Latest SparkReport to Google Drive
+        env:
+          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: |
+          python <<EOF
+          import os, json, zipfile
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
+
+          def get_latest_spark_folder():
+              base = "ExtentReports"
+              folders = [f for f in os.listdir(base) if f.startswith("SparkReport_") and os.path.isdir(os.path.join(base, f))]
+              folders.sort(reverse=True)
+              return os.path.join(base, folders[0]) if folders else None
+
+          def zip_folder(folder_path, output_path):
+              with zipfile.ZipFile(output_path, 'w') as zipf:
+                  for root, _, files in os.walk(folder_path):
+                      for file in files:
+                          path = os.path.join(root, file)
+                          zipf.write(path, os.path.relpath(path, start=folder_path))
+
+          def upload_to_drive(zip_path, zip_name, folder_id):
+              creds_dict = json.loads(os.environ['GDRIVE_CREDENTIALS'])
+              creds = service_account.Credentials.from_service_account_info(creds_dict, scopes=["https://www.googleapis.com/auth/drive"])
+              service = build("drive", "v3", credentials=creds)
+              file_metadata = { 'name': zip_name, 'parents': [folder_id] }
+              media = MediaFileUpload(zip_path, mimetype='application/zip')
+              file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+              print("Uploaded file ID:", file.get("id"))
+
+          latest_folder = get_latest_spark_folder()
+          if not latest_folder:
+              print("No SparkReport folder found.")
+              exit(1)
+
+          zip_name = latest_folder + ".zip"
+          zip_folder(latest_folder, zip_name)
+          upload_to_drive(zip_name, os.path.basename(zip_name), os.environ['GDRIVE_FOLDER_ID'])
+          EOF
