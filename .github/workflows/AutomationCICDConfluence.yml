@@ -14,9 +14,6 @@ on:
           - '@SU_TC04_Navigate_to_Registration_Page_from_Login_Page'
           - '@SU_TC05_login_valid_credentials'
           - '@SU_TC06_Login_with_Valid_Username_Invalid_Password'
-      confluence_page:
-        description: 'Confluence Page ID'
-        required: true
 
 jobs:
   run-tests:
@@ -32,14 +29,6 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Python Dependencies
-        run: pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
-
       - name: Run Maven Test with Selected Tag
         id: test-run
         run: |
@@ -50,24 +39,26 @@ jobs:
         id: test-result
         if: always()
         run: |
-          if [ "${{ steps.test-run.outcome }}" == 'success' ]; then
+          if [ "${{ steps.test-run.outcome }}" == "success" ]; then
             echo "status=passed" >> $GITHUB_OUTPUT
           else
             echo "status=failed" >> $GITHUB_OUTPUT
           fi
-          echo "tag=$(echo "${{ github.event.inputs.cucumber_tag }}" | sed 's/@//')" >> $GITHUB_OUTPUT
+          echo "tag=$(echo '${{ github.event.inputs.cucumber_tag }}' | sed 's/@//')" >> $GITHUB_OUTPUT
           echo "timestamp=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
 
       - name: Update Confluence
-        env:
-          CONF_TOKEN: ${{ secrets.CONFLUENCE_TOKEN }}
         run: |
           python update_confluence2.py \
             "${{ steps.test-result.outputs.tag }}" \
             "${{ steps.test-result.outputs.status }}" \
             "${{ steps.test-result.outputs.timestamp }}" \
-            "${{ github.event.inputs.confluence_page }}" \
-            "${{ env.CONF_TOKEN }}"
+            "28115116" \
+            "${{ secrets.CONFLUENCE_TOKEN }}"
+
+      - name: Install Google API Python Client
+        run: |
+          pip install --upgrade google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
 
       - name: Upload Latest SparkReport to Google Drive
         env:
@@ -75,10 +66,10 @@ jobs:
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
           python <<EOF
-import os, json, zipfile
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+          import os, json, zipfile
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
 
 def get_latest_spark_folder():
     base = "ExtentReports"
