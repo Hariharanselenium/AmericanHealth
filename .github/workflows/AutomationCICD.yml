@@ -58,7 +58,7 @@ jobs:
           token = os.environ['CONF_TOKEN']
 
           # Simulated update to Confluence
-          print(f"python emojiname.py {tag_name} {status} {trigger_time} {page_id} {token}")
+          print(f"python update_confluence2.py {tag_name} {status} {trigger_time} {page_id} {token}")
           # Here you can call actual Confluence API using requests if needed
           EOF
 
