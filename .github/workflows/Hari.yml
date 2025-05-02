@@ -34,6 +34,7 @@ jobs:
           GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
           GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
+          python <<EOF
           import os, json, zipfile
           from google.oauth2 import service_account
           from googleapiclient.discovery import build
