@@ -54,7 +54,7 @@ jobs:
           tag_name = "${{ github.event.inputs.cucumber_tag }}"
           status = "passed"
           trigger_time = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-          page_id = "11075585"
+          page_id = "28115116"
           token = os.environ['CONF_TOKEN']
 
           # Simulated update to Confluence
