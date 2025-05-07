@@ -1,4 +1,4 @@
-name: Single Touch Automation
+name: Not Zipped
 
 on:
   workflow_dispatch:
