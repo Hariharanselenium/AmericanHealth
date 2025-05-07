@@ -1,4 +1,4 @@
-name: Upload Reports to Drive
+name: Single Touch Automation
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ on:
           - '@SU_TC03_Register_with_existing_accounts_credentials'
           - '@SU_TC04_Navigate_to_Registration_Page_from_Login_Page'
           - '@SU_TC05_login_valid_credentials'
-          - '@SU_TC06_Login_with_Valid_Username_Invalid_Password'
+          - '@All_Test'
 
 jobs:
   run-tests:
