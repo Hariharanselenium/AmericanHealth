@@ -43,8 +43,8 @@ public class ReportUtils {
             String latestFolder= FrameworkConstants.EXTENT_REPORT_FOLDER_PATH+File.separator+getLatestFilefromDir(FrameworkConstants.EXTENT_REPORT_FOLDER_PATH ).getName();
 
             System.out.println("folder report: " + latestFolder);
-            link=  latestFolder  + File.separator + "Reports"+ File.separator+FrameworkConstants.EXTENT_REPORT_FILE_NAME;
-
+//            link=  latestFolder  + File.separator + "Reports"+ File.separator+FrameworkConstants.EXTENT_REPORT_FILE_NAME;
+            link=  latestFolder  + File.separator+FrameworkConstants.EXTENT_REPORT_FILE_NAME;
 
             System.out.println("Created link report: " + link);
             return link;

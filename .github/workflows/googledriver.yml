@@ -1,0 +1,117 @@
+name: Run Cucumber Tests and Upload Reports to Drive
+
+on:
+  workflow_dispatch:
+    inputs:
+      cucumber_tag:
+        description: 'Select Cucumber Tag to Run'
+        required: true
+        type: choice
+        options:
+          - '@SU_TC01_Register_with_valid_credentials'
+          - '@SU_TC02_Register_with_leaving_one_mandatory_field_blank'
+          - '@SU_TC03_Register_with_existing_accounts_credentials'
+          - '@SU_TC04_Navigate_to_Registration_Page_from_Login_Page'
+          - '@SU_TC05_login_valid_credentials'
+          - '@SU_TC06_Login_with_Valid_Username_Invalid_Password'
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Run Maven Test with Selected Tag
+        run: |
+          echo "Running tests with tag: ${{ github.event.inputs.cucumber_tag }}"
+          mvn clean test -Dcucumber.filter.tags="${{ github.event.inputs.cucumber_tag }}"
+
+      - name: Verify Reports Generation
+        run: |
+          echo "=== Checking for Generated Reports ==="
+          find . -name "SparkReport_*" -type d || echo "No Spark reports found"
+          if [ -d "ExtentReports" ]; then
+            echo "ExtentReports directory exists with:"
+            ls -R ExtentReports
+          else
+            echo "::error::ExtentReports directory not found!"
+            exit 1
+          fi
+
+      - name: Setup Google Drive Uploader
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+          wget -q https://github.com/prasmussen/gdrive/releases/download/2.1.1/gdrive_2.1.1_linux_386.tar.gz
+          tar -xzf gdrive_2.1.1_linux_386.tar.gz
+          chmod +x gdrive
+
+      - name: Upload Reports to Google Drive
+        env:
+          GDRIVE_SERVICE_ACCOUNT_JSON: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_JSON }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+        run: |
+          # Create credentials file
+          echo "$GDRIVE_SERVICE_ACCOUNT_JSON" > credentials.json
+          chmod 600 credentials.json
+
+          # Get service account email
+          SA_EMAIL=$(jq -r '.client_email' credentials.json)
+          echo "Service Account Email: $SA_EMAIL"
+          echo "Please ensure this email has Editor access to your Google Drive folder"
+
+          # Verify Drive access
+          echo "=== Testing Drive Access ==="
+          ./gdrive about --service-account credentials.json
+
+          # Get latest report directory
+          REPORT_DIR=$(find ExtentReports -name "SparkReport_*" -type d | head -1)
+          echo "=== Found Reports at: $REPORT_DIR ==="
+          ls -R "$REPORT_DIR"
+
+          # Create new folder for this test run
+          TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
+          FOLDER_NAME="TestReports_$TIMESTAMP"
+          echo "=== Creating Drive Folder: $FOLDER_NAME ==="
+          
+          FOLDER_ID=$(./gdrive mkdir \
+            --service-account credentials.json \
+            --parent "$GDRIVE_FOLDER_ID" \
+            "$FOLDER_NAME" | awk '{print $2}')
+          
+          if [ -z "$FOLDER_ID" ]; then
+            echo "::error::Failed to create folder in Drive"
+            echo "Please verify:"
+            echo "1. Service account $SA_EMAIL has Editor access to folder $GDRIVE_FOLDER_ID"
+            echo "2. Google Drive API is enabled"
+            exit 1
+          fi
+
+          # Upload reports
+          echo "=== Uploading Reports ==="
+          ./gdrive upload \
+            --service-account credentials.json \
+            --recursive \
+            --parent "$FOLDER_ID" \
+            "$REPORT_DIR" || true
+
+          # Final verification
+          echo "=== Upload Verification ==="
+          ./gdrive list \
+            --service-account credentials.json \
+            --query "'$FOLDER_ID' in parents" \
+            --name-width 50
+
+          echo "::notice::View uploaded reports at: https://drive.google.com/drive/folders/$FOLDER_ID"
+
+      - name: Cleanup
+        run: |
+          rm -f gdrive* credentials.json
