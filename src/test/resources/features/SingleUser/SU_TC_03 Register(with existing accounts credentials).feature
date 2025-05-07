@@ -1,4 +1,4 @@
- @SingleUser @fulltest
+ @SingleUser @fulltest @All_Test
    Feature: SU_TC03_Register_with_existing_accounts_credentials
 
   @SU_TC03_Register_with_existing_accounts_credentials

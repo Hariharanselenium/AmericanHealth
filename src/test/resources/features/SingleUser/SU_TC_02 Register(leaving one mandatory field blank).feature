@@ -1,4 +1,4 @@
-@SingleUser @fulltest
+@SingleUser @fulltest @All_Test
    Feature: SU_TC02_Register_with_leaving_one_mandatory_field_blank
 
   @SU_TC02_Register_with_leaving_one_mandatory_field_blank 

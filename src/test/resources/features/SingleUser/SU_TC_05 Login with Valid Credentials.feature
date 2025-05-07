@@ -1,4 +1,4 @@
- @SingleUser @fulltest
+ @SingleUser @fulltest @All_Test
 Feature: SU_TC05_login_valid_credentials  
 
 @SU_TC05_login_valid_credentials  

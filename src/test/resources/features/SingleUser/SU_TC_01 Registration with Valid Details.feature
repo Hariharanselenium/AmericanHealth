@@ -1,4 +1,4 @@
-@SingleUser @fulltest 
+@SingleUser @fulltest @All_Test
    Feature: SU_TC01_Register_with_valid_credentials
 
   @SU_TC01_Register_with_valid_credentials

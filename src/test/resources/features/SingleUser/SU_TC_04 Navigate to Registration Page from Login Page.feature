@@ -1,4 +1,4 @@
- @SingleUser @fulltest
+ @SingleUser @fulltest @All_Test
    Feature: SU_TC04_Navigate_to_Registration_Page_from_Login_Page 
     
   @SU_TC04_Navigate_to_Registration_Page_from_Login_Page   
